@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 import argparse
 import time
-from random import randint
+from random import random
 import Queue
 import subprocess
+from math import exp
 
 from swarm.managers import make_server, make_client
 
@@ -55,14 +56,14 @@ def run_client(ip, port, authkey, max_items=None):
     manager = make_client(ip, port, authkey)
     job_q = manager.get_job_q()
     result_q = manager.get_result_q()
-    function = manager.function
+    function = manager.get_function()._getvalue()
 
     processed = 0
     keep_going = True
     while keep_going:
         try:
             job = job_q.get_nowait()
-            result = function(job)._getvalue()
+            result = function(job)
             result_q.put(result)
         except Queue.Empty:
             return
@@ -70,7 +71,11 @@ def run_client(ip, port, authkey, max_items=None):
         if max_items is not None and processed == max_items:
             keep_going = False
         
-
+def worker(n):
+    """Spend some time calculating exponentials."""
+    for _ in xrange(999999):
+        a = exp(n)
+    return n, a
 
 def main():
     parser = argparse.ArgumentParser()
@@ -86,12 +91,9 @@ def main():
         run_client(args.host, args.port, args.key)
     else:
         print "Running server-client demonstration"
-        def worker(n):
-            time.sleep(n)
-            return n
         server = SwarmServer(worker, args.port, args.key)
-        for _ in xrange(5):
-            server.put(randint(1,3))
+        for i in xrange(1, 500, 1):
+            server.put(i)
         subprocess.Popen(['python', __file__, '--client', '--host', args.host, '--port', str(args.port), '--key', args.key])
         for result in server:
             print "Server got back '{}'".format(result)

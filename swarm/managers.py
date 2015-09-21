@@ -44,7 +44,8 @@ def make_server(function, port, authkey):
         callable=partial(return_arg, Queue()))
     QueueManager.register('get_result_q',
         callable=partial(return_arg, Queue()))
-    QueueManager.register('function', function)
+    QueueManager.register('get_function',
+        callable=partial(return_arg, function))
 
     manager = QueueManager(address=('', port), authkey=authkey)
     manager.start()
@@ -61,7 +62,7 @@ def make_client(ip, port, authkey):
     """
     QueueManager.register('get_job_q')
     QueueManager.register('get_result_q')
-    QueueManager.register('function')
+    QueueManager.register('get_function')
 
     manager = QueueManager(address=(ip, port), authkey=authkey)
     manager.connect()
