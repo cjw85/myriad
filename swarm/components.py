@@ -143,13 +143,14 @@ def main():
     parser.add_argument('--host', default='localhost')
     parser.add_argument('--port', type=int, default=5000)
     parser.add_argument('--key',  default='123456')
+    parser.add_argument('--max_items', default=None)
     grp = parser.add_mutually_exclusive_group(required=True)
     grp.add_argument('--client', action='store_true', help='Run client')
     grp.add_argument('--serverclient', action='store_true', help='Run server-client demo')
 
     args = parser.parse_args()
     if args.client:
-        run_client(args.host, args.port, args.key)
+        run_client(args.host, args.port, args.key, args.max_items)
     else:
         print "Running server-client demonstration"
         server = SwarmServer(worker, args.port, args.key, qsize=10)
