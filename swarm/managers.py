@@ -28,8 +28,13 @@ def return_arg(arg):
 class QueueManager(SyncManager):
     pass
 
+class SharedConst(object):
+    def __init__(self, value):
+        self.value = value
+    def update(self, value):
+        self.value = value
 
-def make_server(function, port, authkey):
+def make_server(function, port, authkey, qsize=None):
     """Create a manager containing input and output queues, and a function
     to map inputs over. A connecting client can read the stored function,
     apply it to items in the input queue and post back to the output
@@ -41,11 +46,13 @@ def make_server(function, port, authkey):
 
     """
     QueueManager.register('get_job_q',
-        callable=partial(return_arg, Queue()))
+        callable=partial(return_arg, Queue(maxsize=qsize)))
     QueueManager.register('get_result_q',
-        callable=partial(return_arg, Queue()))
+        callable=partial(return_arg, Queue(maxsize=qsize)))
     QueueManager.register('get_function',
         callable=partial(return_arg, function))
+    QueueManager.register('q_closed',
+        callable=partial(return_arg, SharedConst(False)))
 
     manager = QueueManager(address=('', port), authkey=authkey)
     manager.start()
@@ -63,6 +70,7 @@ def make_client(ip, port, authkey):
     QueueManager.register('get_job_q')
     QueueManager.register('get_result_q')
     QueueManager.register('get_function')
+    QueueManager.register('q_closed')
 
     manager = QueueManager(address=(ip, port), authkey=authkey)
     manager.connect()

@@ -5,11 +5,12 @@ from random import random
 import Queue
 import subprocess
 from math import exp
+from time import sleep
 
 from swarm.managers import make_server, make_client
 
 class SwarmServer(object):
-    def __init__(self, function, port, authkey):
+    def __init__(self, function, port, authkey, qsize=None):
         """A server containing input and output queues, and a function to
         map inputs over. A connecting client can read the stored function,
         apply it to items in the input queue and post back to the output
@@ -20,25 +21,83 @@ class SwarmServer(object):
         :param authkey: authorization key
 
         """
-        self.manager = make_server(function, port, authkey)
+        self.manager = make_server(function, port, authkey, qsize=qsize)
         self.job_q = self.manager.get_job_q()
         self.result_q = self.manager.get_result_q()
         self.items = 0
+        self._closed = self.manager.q_closed()
 
-    def put(self, item):
-        self.items += 1
-        self.job_q.put(item)
+    def put(self, item, block=True, timeout=None):
+        if self.closed:
+            raise RuntimeError('Tried to put to SwarmServer, but queue is closed.')
+        self.job_q.put(item, block, timeout)
 
     def get(self):
-        self.items -= 1
         return self.result_q.get()
+
+    def close(self):
+        self._closed.update(True)
+
+    @property
+    def closed(self):
+        return self._closed._getvalue().value
+
+    def imap_unordered(self, jobs, timeout=0.01):
+        """A iterator over a set of jobs.
+
+        :param jobs: the items to pass through our function
+        :param timeout: timeout between polling queues
+
+        Results are yielded as soon as they are available in the output
+        queue (up to the discretisation provided by timeout). Since the
+        queues can be specified to have a maximum length, the consumption
+        of both the input jobs iterable and memory use in the output
+        queues are controlled.
+        """
+        timeout = max(timeout, 0.01)
+        jobs_iter = iter(jobs)
+        out_jobs = 0
+        job = None
+        while True:
+            if not self.closed and job is None:
+                # Get a job
+                try:
+                    job = jobs_iter.next()
+                except StopIteration:
+                    job = None
+                    self.close()
+            if job is not None:
+                # Put any job
+                try:
+                    self.put(job, True, timeout)
+                except Queue.Full:
+                    pass
+                else:
+                    job = None
+                    self.items += 1
+            for result in self.get_finished():
+                yield result
+            # Input and yielded everything?
+            if self.closed and self.items == 0:
+                break
+            sleep(timeout)
+            
+    def get_finished(self):
+        while True:
+            try:
+                yield self.result_q.get_nowait()
+            except Queue.Empty:
+                break
+            else:
+                self.items -= 1
 
     def __iter__(self):
         while self.items > 0:
             self.items -= 1
-            yield self.result_q.get()
+            yield self.result_q.get()            
 
     def __exit__(self):
+        self.closed = True
         time.sleep(2)
         self.manager.shutdown()
 
@@ -55,21 +114,23 @@ def run_client(ip, port, authkey, max_items=None):
 
     manager = make_client(ip, port, authkey)
     job_q = manager.get_job_q()
+    job_q_closed = manager.q_closed()
     result_q = manager.get_result_q()
     function = manager.get_function()._getvalue()
 
     processed = 0
-    keep_going = True
-    while keep_going:
+    while True:
         try:
             job = job_q.get_nowait()
             result = function(job)
             result_q.put(result)
         except Queue.Empty:
-            return
-        processed += 1
-        if max_items is not None and processed == max_items:
-            keep_going = False
+            if job_q_closed._getvalue().value:
+                break
+        else:
+            processed += 1
+            if max_items is not None and processed == max_items:
+                break
         
 def worker(n):
     """Spend some time calculating exponentials."""
@@ -91,11 +152,8 @@ def main():
         run_client(args.host, args.port, args.key)
     else:
         print "Running server-client demonstration"
-        server = SwarmServer(worker, args.port, args.key)
-        for i in xrange(1, 500, 1):
-            server.put(i)
-        subprocess.Popen(['python', __file__, '--client', '--host', args.host, '--port', str(args.port), '--key', args.key])
-        for result in server:
+        server = SwarmServer(worker, args.port, args.key, qsize=10)
+        for result in server.imap_unordered(xrange(1,50)):
             print "Server got back '{}'".format(result)
 
 
