@@ -19,12 +19,13 @@ class SwarmServer(object):
         :param function: function to apply to inputs
         :param port: port over which to server
         :param authkey: authorization key
+        :param qsize: maximum size of input queue
 
         """
         self.manager = make_server(function, port, authkey, qsize=qsize)
         self.job_q = self.manager.get_job_q()
         self.result_q = self.manager.get_result_q()
-        self.items = 0
+        self._items = 0
         self._closed = self.manager.q_closed()
 
     def put(self, item, block=True, timeout=None):
@@ -74,11 +75,11 @@ class SwarmServer(object):
                     pass
                 else:
                     job = None
-                    self.items += 1
+                    self._items += 1
             for result in self.get_finished():
                 yield result
             # Input and yielded everything?
-            if self.closed and self.items == 0:
+            if self.closed and self._items == 0:
                 break
             sleep(timeout)
             
@@ -89,11 +90,11 @@ class SwarmServer(object):
             except Queue.Empty:
                 break
             else:
-                self.items -= 1
+                self._items -= 1
 
     def __iter__(self):
-        while self.items > 0:
-            self.items -= 1
+        while self._items > 0:
+            self._items -= 1
             yield self.result_q.get()            
 
     def __exit__(self):
@@ -136,6 +137,7 @@ def worker(n):
     """Spend some time calculating exponentials."""
     for _ in xrange(999999):
         a = exp(n)
+        b = exp(2*n)
     return n, a
 
 def main():
@@ -152,10 +154,18 @@ def main():
     if args.client:
         run_client(args.host, args.port, args.key, args.max_items)
     else:
+        n_clients = 2
         print "Running server-client demonstration"
+        print " - Starting server"
         server = SwarmServer(worker, args.port, args.key, qsize=10)
+        print " - Starting {} clients".format(n_clients)
+        clients = [subprocess.Popen(['swarm', '--client',
+            '--host', args.host, '--port', str(args.port), '--key', args.key])
+            for _ in xrange(n_clients)]
+        print " - Waiting for results..."
         for result in server.imap_unordered(xrange(1,50)):
-            print "Server got back '{}'".format(result)
+            print "    - Server got back '{}'".format(result)
+        print " - Done"
 
 
 if __name__ == '__main__':

@@ -9,6 +9,7 @@ setup(
     version=0.1,
     description='Simple distributed computing.',
     author='Chris Wright',
+    author_email='chris_wright1@outlook.com',
     url='https://github.com/cjw85/swarm',
     long_description="""Simple client/server based distributed computing using only python standard library.""",
     packages=find_packages(),
