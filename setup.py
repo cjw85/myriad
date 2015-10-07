@@ -4,13 +4,16 @@ import subprocess
 import sys
 from setuptools import setup, find_packages, Extension
 
+version='0.1'
+
 setup(
     name='swarm',
-    version=0.1,
+    version=version,
     description='Simple distributed computing.',
     author='Chris Wright',
     author_email='chris_wright1@outlook.com',
     url='https://github.com/cjw85/swarm',
+    download_url='https://github.com/cjw85/swarm/tarball/{}'.format(version),
     long_description="""Simple client/server based distributed computing using only python standard library.""",
     packages=find_packages(),
     entry_points={
