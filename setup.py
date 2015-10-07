@@ -7,17 +7,17 @@ from setuptools import setup, find_packages, Extension
 version='0.1'
 
 setup(
-    name='swarm',
+    name='myriad',
     version=version,
     description='Simple distributed computing.',
     author='Chris Wright',
     author_email='chris_wright1@outlook.com',
-    url='https://github.com/cjw85/swarm',
-    download_url='https://github.com/cjw85/swarm/tarball/{}'.format(version),
+    url='https://github.com/cjw85/myriad',
+    download_url='https://github.com/cjw85/myriad/tarball/{}'.format(version),
     long_description="""Simple client/server based distributed computing using only python standard library.""",
     packages=find_packages(),
     entry_points={
-        'console_scripts':['swarm = swarm.components:main']
+        'console_scripts':['myriad = myriad.components:main']
     },
     classifiers = [
         'Development Status :: 4 - Beta',

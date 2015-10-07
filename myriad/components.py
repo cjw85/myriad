@@ -7,9 +7,9 @@ import subprocess
 from math import exp
 from time import sleep
 
-from swarm.managers import make_server, make_client
+from myriad.managers import make_server, make_client
 
-class SwarmServer(object):
+class MyriadServer(object):
     def __init__(self, function, port, authkey, qsize=None):
         """A server containing input and output queues, and a function to
         map inputs over. A connecting client can read the stored function,
@@ -157,9 +157,9 @@ def main():
         n_clients = 2
         print "Running server-client demonstration"
         print " - Starting server"
-        server = SwarmServer(worker, args.port, args.key, qsize=10)
+        server = MyriadServer(worker, args.port, args.key, qsize=10)
         print " - Starting {} clients".format(n_clients)
-        clients = [subprocess.Popen(['swarm', '--client',
+        clients = [subprocess.Popen(['myriad', '--client',
             '--host', args.host, '--port', str(args.port), '--key', args.key])
             for _ in xrange(n_clients)]
         print " - Waiting for results..."
