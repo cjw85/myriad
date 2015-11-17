@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import sys
 import argparse
 import time
 from random import random
@@ -30,11 +31,22 @@ class MyriadServer(object):
 
     def put(self, item, block=True, timeout=None):
         if self.closed:
-            raise RuntimeError('Tried to put to SwarmServer, but queue is closed.')
-        self.job_q.put(item, block, timeout)
+            raise RuntimeError('Tried to put to MyriadServer, but queue is closed.')
+        try:
+            self.job_q.put(item, block, timeout)
+        except Queue.Full as e:
+            raise e
+        else:
+            self._items += 1
 
     def get(self):
-        return self.result_q.get()
+        try:
+            result = self.result_q.get()
+        except Exception as e:
+            raise e
+        else:
+            self._items -= 1
+            return result
 
     def close(self):
         self._closed.update(True)
@@ -43,7 +55,7 @@ class MyriadServer(object):
     def closed(self):
         return self._closed._getvalue().value
 
-    def imap_unordered(self, jobs, timeout=0.01):
+    def imap_unordered(self, jobs, timeout=0.5):
         """A iterator over a set of jobs.
 
         :param jobs: the items to pass through our function
@@ -55,7 +67,7 @@ class MyriadServer(object):
         of both the input jobs iterable and memory use in the output
         queues are controlled.
         """
-        timeout = max(timeout, 0.01)
+        timeout = max(timeout, 0.5)
         jobs_iter = iter(jobs)
         out_jobs = 0
         job = None
@@ -72,10 +84,9 @@ class MyriadServer(object):
                 try:
                     self.put(job, True, timeout)
                 except Queue.Full:
-                    pass
+                    pass # we'll try again next time around
                 else:
                     job = None
-                    self._items += 1
             for result in self.get_finished():
                 yield result
             # Input and yielded everything?
@@ -94,8 +105,7 @@ class MyriadServer(object):
 
     def __iter__(self):
         while self._items > 0:
-            self._items -= 1
-            yield self.result_q.get()            
+            yield self.get()
 
     def __exit__(self):
         self.closed = True
@@ -103,7 +113,7 @@ class MyriadServer(object):
         self.manager.shutdown()
 
 
-def run_client(ip, port, authkey, max_items=None):
+def run_client(ip, port, authkey, max_items=None, timeout=2):
     """Connect to a SwarmServer and do its dirty work.
 
     :param ip: ip address of server
@@ -132,6 +142,7 @@ def run_client(ip, port, authkey, max_items=None):
             processed += 1
             if max_items is not None and processed == max_items:
                 break
+        sleep(timeout)
         
 def worker(n):
     """Spend some time calculating exponentials."""
@@ -142,10 +153,10 @@ def worker(n):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--host', default='localhost')
+    parser.add_argument('--host', type=str, default='localhost')
     parser.add_argument('--port', type=int, default=5000)
-    parser.add_argument('--key',  default='123456')
-    parser.add_argument('--max_items', default=None)
+    parser.add_argument('--key',  type=str, default='123456')
+    parser.add_argument('--max_items', type=int, default=None)
     grp = parser.add_mutually_exclusive_group(required=True)
     grp.add_argument('--client', action='store_true', help='Run client')
     grp.add_argument('--serverclient', action='store_true', help='Run server-client demo')
@@ -163,7 +174,7 @@ def main():
             '--host', args.host, '--port', str(args.port), '--key', args.key])
             for _ in xrange(n_clients)]
         print " - Waiting for results..."
-        for result in server.imap_unordered(xrange(1,50)):
+        for result in server.imap_unordered(xrange(200)):
             print "    - Server got back '{}'".format(result)
         print " - Done"
 

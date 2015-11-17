@@ -29,7 +29,7 @@ key = 'auth_key'
 worker = ... # mysterious function that transforms inputs to outputs
 
 # Create a server
-server = SwarmServer(worker, port, key)
+server = MyriadServer(worker, port, key)
 # Push some jobs to the server
 for _ in xrange(5):
     server.put(randint(1, 3))
