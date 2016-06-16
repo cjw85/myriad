@@ -89,6 +89,7 @@ class MyriadServer(object):
                     job = None
             for result in self.get_finished():
                 yield result
+                
             # Input and yielded everything?
             if self.closed and self._items == 0:
                 break
