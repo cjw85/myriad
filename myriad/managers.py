@@ -54,7 +54,7 @@ def make_server(function, port, authkey, qsize=None):
     QueueManager.register('q_closed',
         callable=partial(return_arg, SharedConst(False)))
 
-    manager = QueueManager(address=('', port), authkey=authkey)
+    manager = QueueManager(address=('localhost', port), authkey=authkey)
     manager.start()
     return manager
 
