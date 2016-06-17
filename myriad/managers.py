@@ -1,3 +1,4 @@
+import os
 from multiprocessing.managers import SyncManager
 from functools import partial
 import multiprocessing
@@ -54,7 +55,11 @@ def make_server(function, port, authkey, qsize=None):
     QueueManager.register('q_closed',
         callable=partial(return_arg, SharedConst(False)))
 
-    manager = QueueManager(address=('localhost', port), authkey=authkey)
+    # on windows host='' doesn't work, but 'localhost' breaks
+    #   remote connections. Documentation terrible in this respect.
+    #   So we're not supporting distributed compute on windows.
+    host = 'localhost' if os.name == 'nt' else ''
+    manager = QueueManager(address=(host, port), authkey=authkey)
     manager.start()
     return manager
 
