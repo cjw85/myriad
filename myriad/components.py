@@ -175,7 +175,7 @@ def main():
             '--host', args.host, '--port', str(args.port), '--key', args.key])
             for _ in xrange(n_clients)]
         print " - Waiting for results..."
-        for result in server.imap_unordered(xrange(200)):
+        for result in server.imap_unordered(xrange(10)):
             print "    - Server got back '{}'".format(result)
         print " - Done"
 

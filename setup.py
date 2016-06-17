@@ -4,7 +4,7 @@ import subprocess
 import sys
 from setuptools import setup, find_packages, Extension
 
-version='0.1.2'
+version='0.1.3'
 
 setup(
     name='myriad',
